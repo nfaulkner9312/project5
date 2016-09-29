@@ -17,7 +17,10 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h"
 
+#define DEFAULT_NUMARGS 2
+#define DELIMITER " "
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
@@ -26,8 +29,7 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
 tid_t
-process_execute (const char *file_name) 
-{
+process_execute (const char *file_name) {
   char *fn_copy;
   tid_t tid;
 
@@ -36,6 +38,12 @@ process_execute (const char *file_name)
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
+  
+  /* Get filename without arguments */
+  char *saveptr;
+  file_name = strtok_r((char*)file_name, DELIMITER, &saveptr);
+
+  /* Make a copy of the filename now that it's been parsed */
   strlcpy (fn_copy, file_name, PGSIZE);
 
   /* Create a new thread to execute FILE_NAME. */
@@ -195,7 +203,7 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-static bool setup_stack (void **esp);
+static bool setup_stack (void **esp, const char* file_name);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -302,7 +310,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
 
   /* Set up stack. */
-  if (!setup_stack (esp))
+  printf("file loaded, about to setup stack\n");
+  if (!setup_stack (esp, file_name))
     goto done;
 
   /* Start address. */
@@ -426,22 +435,73 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
-static bool
-setup_stack (void **esp) 
-{
-  uint8_t *kpage;
-  bool success = false;
+static bool setup_stack (void **esp, const char* file_name) {
+    uint8_t *kpage;
+    bool success = false;
 
-  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-  if (kpage != NULL) 
-    {
-      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-      if (success)
-        *esp = PHYS_BASE;
-      else
-        palloc_free_page (kpage);
+    kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+    if (kpage != NULL){ 
+        success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+        if (success) {
+            *esp = PHYS_BASE;
+        } else {
+            palloc_free_page (kpage);
+        }
     }
-  return success;
+    printf("setting up the stack with filename = %s\n", file_name);
+    
+    char **args = malloc(DEFAULT_NUMARGS*sizeof(char*));
+    char **arg_addrs = malloc(DEFAULT_NUMARGS*sizeof(char*));
+    char *saveptr;
+    char *arg = strtok_r((char*)file_name, DELIMITER, &saveptr);
+    int i=0, j=0, arglength = 0;
+    while (arg != NULL) {
+        args[i] = arg;
+        i++;
+        /* TODO: Have to realloc a larger space of memory 
+                 if there is more than one argument */ 
+        arg = strtok_r(NULL, DELIMITER, &saveptr);
+    }
+    args[i] = NULL;
+    arg_addrs[i] = NULL;
+    /* push the args onto the stack */
+    for (j=i-1; j>=0; j--) {
+        printf("pushing arg = %s\n", args[j]);
+        arglength = strlen(args[j]) + 1;
+        *esp -= arglength;
+        arg_addrs[j] = *esp; 
+        memcpy(*esp, args[j], strlen(args[j]) + 1); 
+    }
+
+    /* word align the pointer */
+    *esp = *esp - 4 + arglength % 4;
+
+    /* push the arguments arddress's to the stack */
+    for (j=i-1; j>=0; j--) {
+        //printf("pusing address = %d\n", &arg_addrs[j]);
+        *esp -= sizeof(char *);
+        memcpy(*esp, &arg_addrs[j], sizeof(char *)); 
+    }
+
+    /* push address of the address for the first arguement */
+    char *tmp_esp = *esp;
+    *esp -= sizeof(char **);
+    size_t st = sizeof(char **);
+    memcpy(*esp, &tmp_esp, st);
+
+    /* push the number of arguments (argc) */
+    *esp -= sizeof(int);
+    memcpy(*esp, &i, sizeof(int));
+
+    /* push dummy return address, NULL (not sure why?) */
+    *esp -= sizeof(void *);
+    memcpy(*esp, &arg_addrs[i], sizeof(void *));
+    
+    /* deallocate the arrays that were created */
+    free(args);
+    free(arg_addrs);
+
+    return success;
 }
 
 /* Adds a mapping from user virtual address UPAGE to kernel
