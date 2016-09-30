@@ -22,9 +22,10 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
     printf ("system call = %d\n", *(int*)f->esp);
     
     switch(*(int*)f->esp) {
-        case SYS_HALT: {
+	/*each argument is just the next thing on the stack after the syctemcall#, esp+1 esp+2 etc*/
+        case SYS_HALT: {halt();
             break;
-        } case SYS_EXIT: {
+        } case SYS_EXIT: {exit(*(int*)(f->esp+1));/*example, may not be correct syntax, since esp is passed as a void*   */
             break;
         } case SYS_EXEC: {
             break;
@@ -35,7 +36,7 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
         } case SYS_REMOVE: {
             break;
         } case SYS_OPEN: {
-		int k = open();
+		int k = open((const char*)(f->esp+1));`
             break;
         } case SYS_FILESIZE: {
             break;
