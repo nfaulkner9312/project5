@@ -477,7 +477,7 @@ static bool setup_stack (void **esp, const char* file_name) {
     *esp = *esp - 4 + arglength % 4;
 
     /* push the arguments arddress's to the stack */
-    for (j=i-1; j>=0; j--) {
+    for (j=i; j>=0; j--) {
         //printf("pusing address = %d\n", &arg_addrs[j]);
         *esp -= sizeof(char *);
         memcpy(*esp, &arg_addrs[j], sizeof(char *)); 
