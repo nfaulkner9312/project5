@@ -310,7 +310,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
 
   /* Set up stack. */
-  printf("file loaded, about to setup stack\n");
+  //printf("file loaded, about to setup stack\n");
   if (!setup_stack (esp, file_name))
     goto done;
 
@@ -448,7 +448,7 @@ static bool setup_stack (void **esp, const char* file_name) {
             palloc_free_page (kpage);
         }
     }
-    printf("setting up the stack with filename = %s\n", file_name);
+    //printf("setting up the stack with filename = %s\n", file_name);
     
     char **args = malloc(DEFAULT_NUMARGS*sizeof(char*));
     char **arg_addrs = malloc(DEFAULT_NUMARGS*sizeof(char*));
@@ -462,11 +462,11 @@ static bool setup_stack (void **esp, const char* file_name) {
                  if there is more than one argument */ 
         arg = strtok_r(NULL, DELIMITER, &saveptr);
     }
-    args[i] = NULL;
-    arg_addrs[i] = NULL;
+    args[i] = 0;
+    arg_addrs[i] = 0;
     /* push the args onto the stack */
     for (j=i-1; j>=0; j--) {
-        printf("pushing arg = %s\n", args[j]);
+        //printf("pushing arg = %s\n", args[j]);
         arglength = strlen(args[j]) + 1;
         *esp -= arglength;
         arg_addrs[j] = *esp; 
@@ -477,7 +477,7 @@ static bool setup_stack (void **esp, const char* file_name) {
     *esp = *esp - 4 + arglength % 4;
 
     /* push the arguments arddress's to the stack */
-    for (j=i-1; j>=0; j--) {
+    for (j=i; j>=0; j--) {
         //printf("pusing address = %d\n", &arg_addrs[j]);
         *esp -= sizeof(char *);
         memcpy(*esp, &arg_addrs[j], sizeof(char *)); 
