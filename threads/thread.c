@@ -11,6 +11,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h" 
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -162,46 +163,52 @@ thread_print_stats (void)
    The code provided sets the new thread's `priority' member to
    PRIORITY, but no actual priority scheduling is implemented.
    Priority scheduling is the goal of Problem 1-3. */
-tid_t
-thread_create (const char *name, int priority,
-               thread_func *function, void *aux) 
-{
-  struct thread *t;
-  struct kernel_thread_frame *kf;
-  struct switch_entry_frame *ef;
-  struct switch_threads_frame *sf;
-  tid_t tid;
+tid_t thread_create (const char *name, int priority, thread_func *function, void *aux) {
 
-  ASSERT (function != NULL);
+    struct thread *t;
+    struct kernel_thread_frame *kf;
+    struct switch_entry_frame *ef;
+    struct switch_threads_frame *sf;
+    tid_t tid;
 
-  /* Allocate thread. */
-  t = palloc_get_page (PAL_ZERO);
-  if (t == NULL)
+    ASSERT (function != NULL);
+
+    /* Allocate thread. */
+    t = palloc_get_page (PAL_ZERO);
+    if (t == NULL)
     return TID_ERROR;
 
-  /* Initialize thread. */
-  init_thread (t, name, priority);
-  tid = t->tid = allocate_tid ();
+    /* Initialize thread. */
+    init_thread (t, name, priority);
+    tid = t->tid = allocate_tid ();
 
-  /* Stack frame for kernel_thread(). */
-  kf = alloc_frame (t, sizeof *kf);
-  kf->eip = NULL;
-  kf->function = function;
-  kf->aux = aux;
+    /* Stack frame for kernel_thread(). */
+    kf = alloc_frame (t, sizeof *kf);
+    kf->eip = NULL;
+    kf->function = function;
+    kf->aux = aux;
 
-  /* Stack frame for switch_entry(). */
-  ef = alloc_frame (t, sizeof *ef);
-  ef->eip = (void (*) (void)) kernel_thread;
+    /* Stack frame for switch_entry(). */
+    ef = alloc_frame (t, sizeof *ef);
+    ef->eip = (void (*) (void)) kernel_thread;
 
-  /* Stack frame for switch_threads(). */
-  sf = alloc_frame (t, sizeof *sf);
-  sf->eip = switch_entry;
-  sf->ebp = 0;
+    /* Stack frame for switch_threads(). */
+    sf = alloc_frame (t, sizeof *sf);
+    sf->eip = switch_entry;
+    sf->ebp = 0;
 
-  /* Add to run queue. */
-  thread_unblock (t);
+    // add child to child_list
+    struct child* child_ptr = malloc(sizeof(struct child));
+    child_ptr->tid = t->tid;
+    child_ptr->exiting = false;
+    
+    list_push_back(&thread_current()->child_list, &child_ptr->elem);
+    t->c = child_ptr;
 
-  return tid;
+    /* Add to run queue. */
+    thread_unblock (t);
+
+    return tid;
 }
 
 /* Puts the current thread to sleep.  It will not be scheduled
@@ -467,6 +474,12 @@ init_thread (struct thread *t, const char *name, int priority)
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
+
+  /* initialize file list */
+  list_init(&t->fd_list);
+
+  /* initialize child list */
+  list_init(&t->child_list);
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and

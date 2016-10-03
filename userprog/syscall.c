@@ -17,8 +17,6 @@
 static void syscall_handler (struct intr_frame *);
 void get_arg (struct intr_frame *f, int *arg, int n);
 int write(int fd, const void *buffer, unsigned size);
-#include "filesys/file.h"
-#include "filesys/filesys.h"
 
 static void syscall_handler (struct intr_frame *);
 void halt(void);
@@ -30,7 +28,6 @@ bool remove(const char* file);
 int open(const char* file);
 int filesize(int fd);
 int read(int fd, void *buffer, unsigned size);
-int write(int fd, void *buffer, unsigned size);
 void seek(int fd, unsigned position);
 unsigned tell(int fd);
 void close(int fd);
@@ -59,10 +56,13 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
             break;
         } case SYS_EXIT: {
             struct thread *cur = thread_current();
+            cur->c->exiting = true;
+            cur->c->exit_status = arg[0];
             printf ("%s: exit(%d)\n", cur->name, arg[0]);
             thread_exit();
             break;
-        } case SYS_EXEC: {exec(*(const char*)(f->esp+1));/*maybe this one is correct? The first thing on the stack is a char*, so I want to cast the void* to a const char*(*?) and dereference it to pass the value at that location which is then a const char*   I am super confused by all these stars*/
+        } case SYS_EXEC: {
+            exec((const char*)(f->esp+1));/*maybe this one is correct? The first thing on the stack is a char*, so I want to cast the void* to a const char*(*?) and dereference it to pass the value at that location which is then a const char*   I am super confused by all these stars*/
             break;
         } case SYS_WAIT: {
             break;
@@ -71,7 +71,7 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
         } case SYS_REMOVE: {
             break;
         } case SYS_OPEN: {
-		int k = open((const char*)(f->esp+1));
+		    int k = open((const char*)(f->esp+1));
             break;
         } case SYS_FILESIZE: {
             break;
@@ -102,7 +102,8 @@ int write(int fd, const void *buffer, unsigned size) {
         return size;
     } else {
         struct thread* cur = thread_current();
-        int ret = file_write(cur->fd_list[fd], buffer, size);
+        //int ret = file_write(cur->fd_list[fd], buffer, size);
+        int ret = 0;
         return ret;
     }
 }
@@ -114,6 +115,7 @@ void get_arg (struct intr_frame *f, int *arg, int n){
         ptr = (int *) f->esp + i + 1;
         arg[i] = *ptr;
     }
+}
 void halt(void){
 /*Terminates Pintos by calling shutdown_power_off() (declared in
 ‘devices/shutdown.h’). This should be seldom used, because you lose
@@ -167,24 +169,29 @@ When a single file is opened more than once, whether by a single process or diff
 processes, each open returns a new file descriptor. Different file descriptors for a single
 file are closed independently in separate calls to close and they do not share a file
 position.*/
+    /*
 	struct thread* cur=thread_current();
 	int ind=2;
 	while(cur->fd_list[ind]==0){
-	ind++;}
+	    ind++;
+    }
 	if(ind>=128){
-	/*TO-DO: some sort of error here, too many files open in one thread. It may just return -1*/
-	return -1;
+	    // TO-DO: some sort of error here, too many files open in one thread. It may just return -1
+	    return -1;
 	}
 	cur->fd_list[ind]=filesys_open(file);
 	if(cur->fd_list[ind]==NULL){
-	return -1;
-	} else 
-	return ind;
+	    return -1;
+	} else {
+	    return ind;
+    }
+    */
 }
 int filesize(int fd){
 /*Returns the size, in bytes, of the file open as fd*/
 	struct thread* cur=thread_current();
-	unsigned ret=file_length(cur->fd_list[fd]);
+	//unsigned ret=file_length(cur->fd_list[fd]);
+    unsigned int ret = 0;
 	return ret;
 }
 
@@ -202,36 +209,12 @@ other than end of file). Fd 0 reads from the keyboard using input_getc().*/
 	/*not sure if this makes sense really, should be STDOUT*/
 	return 0;
 	}
-	unsigned ret = (unsigned)file_read (cur->fd_list[fd], buffer, size);
-
+	//unsigned ret = (unsigned)file_read (cur->fd_list[fd], buffer, size);
+    unsigned int ret = 0;
 	return ret;
 }
 
-int write(int fd, void *buffer, unsigned size){
-/*Writes size bytes from buffer to the open file fd. Returns the number of bytes actually
-written, which may be less than size if some bytes could not be written.
-Writing past end-of-file would normally extend the file, but file growth is not implemented
-by the basic file system. The expected behavior is to write as many bytes as
-possible up to end-of-file and return the actual number written, or 0 if no bytes could
-be written at all.
-Fd 1 writes to the console. Your code to write to the console should write all of buffer
-in one call to putbuf(), at least as long as size is not bigger than a few hundred
-bytes. (It is reasonable to break up larger buffers.) Otherwise, lines of text output
-by different processes may end up interleaved on the console, confusing both human
-readers and our grading scripts.*/
-	struct thread* cur=thread_current();
-	if(fd == 0){
-	/*I think this throws some kind of error*/
-	return 0;
-	}else
-	if(fd == 1){
-	/*TO-DO: write to console*/
-	return 0;
-	}
-	unsigned ret=(unsigned)file_write(cur->fd_list[fd], buffer, size);
-	
-	return ret;
-}
+
 void seek(int fd, unsigned position){
 /*Changes the next byte to be read or written in open file fd to position, expressed in
 bytes from the beginning of the file. (Thus, a position of 0 is the file’s start.)
@@ -247,15 +230,15 @@ unsigned tell(int fd){
 /*Returns the position of the next byte to be read or written in open file fd, expressed
 in bytes from the beginning of the file.*/
 	struct thread* cur=thread_current();
-	unsigned ret=file_tell(cur->fd_list[fd]);
+	//unsigned ret=file_tell(cur->fd_list[fd]);
+    unsigned ret = 0;
 	return ret;
 }
 void close(int fd){
 /*Closes file descriptor fd. Exiting or terminating a process implicitly closes all its open
 file descriptors, as if by calling this function for each one.*/
 	struct thread* cur=thread_current();
-	file_close(cur->fd_list[fd]);
->>>>>>> 66377112d18cf85ec3854aa30175d8d3e032f4e2
+	//file_close(cur->fd_list[fd]);
 }
 
 
