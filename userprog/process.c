@@ -96,7 +96,19 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  return -1;
+    struct thread* cur=thread_current();
+    struct list_elem* CLE;/*child list element*/
+    bool foundChild=false;
+    for(CLE=list_begin(&(cur->childList)); CLE !=list_end(&(cur->childList)); CLE=list_next(CLE)){
+        struct child* c= list_entry(CLE, struct child, elem);/*THIS MIGHT NOT WORK, WHAT IS ELEM??*/
+        if(c->tid_t == child_tid){
+            foundChild=true;
+        }
+    }
+    if(!foundChild)
+        return -1; /*child_tid is not from a child process of parent*/
+    
+  return wait(child_tid);
 }
 
 /* Free the current process's resources. */
