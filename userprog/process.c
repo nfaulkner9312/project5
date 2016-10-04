@@ -55,33 +55,40 @@ process_execute (const char *file_name) {
 
 /* A thread function that loads a user process and starts it
    running. */
-static void
-start_process (void *file_name_)
-{
-  char *file_name = file_name_;
-  struct intr_frame if_;
-  bool success;
+static void start_process (void *file_name_) {
+    char *file_name = file_name_;
+    struct intr_frame if_;
+    bool success;
 
-  /* Initialize interrupt frame and load executable. */
-  memset (&if_, 0, sizeof if_);
-  if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
-  if_.cs = SEL_UCSEG;
-  if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (file_name, &if_.eip, &if_.esp);
+    /* Initialize interrupt frame and load executable. */
+    memset (&if_, 0, sizeof if_);
+    if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
+    if_.cs = SEL_UCSEG;
+    if_.eflags = FLAG_IF | FLAG_MBS;
+    success = load (file_name, &if_.eip, &if_.esp);
 
-  /* If load failed, quit. */
-  palloc_free_page (file_name);
-  if (!success) 
-    thread_exit ();
+    struct thread* cur = thread_current();
+    /* if load didn't succeed set the load_status to -1 then exit thread */
+    if (!success){
+        cur->c->load_status = -1; 
+    } else {
+        cur->c->load_status = 1;
+    }
 
-  /* Start the user process by simulating a return from an
+    /* free the file_name string, this copy is just used for starting the process */
+    palloc_free_page (file_name);
+    if (!success) {
+        thread_exit ();
+    }
+
+    /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
      arguments on the stack in the form of a `struct intr_frame',
      we just point the stack pointer (%esp) to our stack frame
      and jump to it. */
-  asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
-  NOT_REACHED ();
+    asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
+    NOT_REACHED ();
 }
 
 /* Waits for thread TID to die and returns its exit status.  If

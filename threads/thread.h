@@ -86,6 +86,7 @@ struct child {
     struct list_elem elem;
     tid_t tid;
     bool exiting;
+    int load_status;
     int exit_status;
 };
 

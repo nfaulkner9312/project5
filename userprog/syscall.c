@@ -54,10 +54,11 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
             exit(arg[0]);
             break;
         } case SYS_EXEC: {
-            exec((const char*)arg[0]);/*maybe this one is correct? The first thing on the stack is a char*, so I want to cast the void* to a const char*(*?) and dereference it to pass the value at that location which is then a const char*   I am super confused by all these stars*/
+            const char* buf = pagedir_get_page(thread_current()->pagedir, (const void *)arg[0]);
+            f->eax = exec(buf);
             break;
         } case SYS_WAIT: {
-            process_wait(arg[0]);
+            f->eax = process_wait(arg[0]);
             break;
         } case SYS_CREATE: {
             f->eax=create((const char*)arg[0],(unsigned)arg[1]);
@@ -69,7 +70,7 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
 		    f->eax = open((const char*)arg[0]);
             break;
         } case SYS_FILESIZE: {
-               f->eax = filesize((int)arg[0]); 
+            f->eax = filesize((int)arg[0]); 
             break;
         } case SYS_READ: {
             void* buf = pagedir_get_page(thread_current()->pagedir, (const void *)arg[1]);
@@ -82,7 +83,7 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
         } case SYS_SEEK: {
             break;
         } case SYS_TELL: {
-                f->eax=tell(arg[0]);
+            f->eax=tell(arg[0]);
             break;
         } case SYS_CLOSE: {
             close((int)arg[0]);
@@ -140,21 +141,51 @@ should not be a valid pid, if the program cannot load or run for any reason. Thu
 the parent process cannot return from the exec until it knows whether the child
 process successfully loaded its executable. You must use appropriate synchronization
 to ensure this.*/
+  
+    /* execute the command and return the new process's pid */ 
+    pid_t pid = process_execute(cmd_line);
 
-    return 0;
+    struct thread* cur=thread_current(); /*current parent thread*/
+    struct list_elem* CLE; /*child list element*/
+    struct child* c;  /*pointer to child with tid == child_tid*/
+
+    bool found = false;
+    for(CLE=list_begin(&(cur->child_list)); CLE != list_end(&(cur->child_list)); CLE=list_next(CLE)){
+        c = list_entry(CLE, struct child, elem); 
+
+        if(c->tid == pid){
+            found = true;
+            break;
+        }
+    }
+
+    /* if pid is not in the parent's child_list for some reason */
+    if(!found) {
+        return -1; 
+    }
+   
+    while(!c->load_status){
+        barrier();
+    }
+    /* if load status = -1 then load of executable failed */
+    if (c->load_status < 0) {
+        return c->load_status;
+    } else {
+        return pid;
+    }
 }
 
 bool create(const char* fileName, unsigned initial_size){
 /*Creates a new file called file initially initial size bytes in size. Returns true if successful,
 false otherwise. Creating a new file does not open it: opening the new file is
 a separate operation which would require a open system call.*/
-return filesys_create(fileName, initial_size);
+    return filesys_create(fileName, initial_size);
 }
 bool remove(const char* file){
 /*Deletes the file called file. Returns true if successful, false otherwise. A file may be
 removed regardless of whether it is open or closed, and removing an open file does
 not close it. See [Removing an Open File], page 35, for details.*/
-return filesys_remove(file);
+    return filesys_remove(file);
 }
 int open(const char* file){
 /*Opens the file called file. Returns a nonnegative integer handle called a “file descriptor”
@@ -250,7 +281,7 @@ zeros. (However, in Pintos files have a fixed length until project 4 is complete
 writes past end of file will return an error.) These semantics are implemented in the
 file system and do not require any special effort in system call implementation.*/
 	
-return;
+    return;
 }
 unsigned tell(int fd){
 /*Returns the position of the next byte to be read or written in open file fd, expressed
