@@ -14,7 +14,6 @@
 #include "userprog/pagedir.h"
 #include "userprog/process.h"
 
-
 static void syscall_handler (struct intr_frame *);
 void get_arg (struct intr_frame *f, int *arg, int n);
 int write(int fd, const void *buffer, unsigned size);
@@ -54,6 +53,7 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
             exit(arg[0]);
             break;
         } case SYS_EXEC: {
+            is_valid_ptr((const void *) arg[0]);
             const char* buf = pagedir_get_page(thread_current()->pagedir, (const void *)arg[0]);
             f->eax = exec(buf);
             break;
@@ -61,6 +61,7 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
             f->eax = process_wait(arg[0]);
             break;
         } case SYS_CREATE: {
+            is_valid_ptr((const void *) arg[0]);
             f->eax=create((const char*)arg[0],(unsigned)arg[1]);
             break;
         } case SYS_REMOVE: {
@@ -73,10 +74,12 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
             f->eax = filesize((int)arg[0]); 
             break;
         } case SYS_READ: {
+            is_valid_buf((void *) arg[1], arg[2]);
             void* buf = pagedir_get_page(thread_current()->pagedir, (const void *)arg[1]);
             f->eax = read(arg[0], buf, (unsigned) arg[2]);
             break;
         } case SYS_WRITE: {
+            is_valid_buf((void *) arg[1], arg[2]);
             const void* buf = pagedir_get_page(thread_current()->pagedir, (const void *)arg[1]);
             f->eax = write(arg[0], buf, (unsigned) arg[2]);
             break;
@@ -91,6 +94,21 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
             break;
         }
 	
+    }
+}
+
+void is_valid_ptr(const void *ptr) {
+    if (!is_user_vaddr(ptr)) {
+        exit(-1); 
+    }
+}
+
+void is_valid_buf(void *buf, int len) {
+    int i;
+    char* tmp_buf = (char *) buf;
+    for (i=0; i<len; i++) {
+        is_valid_ptr( (const void *)tmp_buf );
+        tmp_buf++;
     }
 }
 
@@ -112,10 +130,23 @@ int write(int fd, const void *buffer, unsigned size) {
         return size;
     } else if(fd == STDIN_FILENO) {
         return -1;
-    }else {
-        struct thread* cur = thread_current();
-        //int ret = file_write(cur->fd_list[fd], buffer, size);
-        int ret = 0;
+    } else {
+        struct thread* cur=thread_current();
+        struct list_elem* e;
+        struct filehandle* fh;
+        bool hasFH=false;
+        for(e=list_begin(&cur->fd_list); e!= list_end(&cur->fd_list); e=list_next(e)) {
+            fh=list_entry(e,struct filehandle, elem);
+            if(fh->fd==fd){
+                hasFH=true;
+                break;
+            }
+        }
+        if(!hasFH){
+            return -1;
+        }
+        
+        unsigned int ret = file_write(fh->fp,buffer,size);
         return ret;
     }
 }
@@ -257,12 +288,11 @@ int read(int fd, void *buffer, unsigned size){
     struct list_elem* e;
     struct filehandle* fh;
     bool hasFH=false;
-    for(e=list_begin(&cur->fd_list); e!= list_end(&cur->fd_list); e=list_next(e))
-    {
+    for(e=list_begin(&cur->fd_list); e!= list_end(&cur->fd_list); e=list_next(e)) {
         fh=list_entry(e,struct filehandle, elem);
         if(fh->fd==fd){
-        hasFH=true;
-        break;
+            hasFH=true;
+            break;
         }
     }
     if(!hasFH){

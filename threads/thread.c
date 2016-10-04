@@ -201,6 +201,7 @@ tid_t thread_create (const char *name, int priority, thread_func *function, void
     struct child* child_ptr = malloc(sizeof(struct child));
     child_ptr->tid = t->tid;
     child_ptr->exiting = false;
+    child_ptr->load_status = 0;
     
     list_push_back(&thread_current()->child_list, &child_ptr->elem);
     t->c = child_ptr;
