@@ -88,15 +88,12 @@ struct child {
     tid_t tid;
     bool exiting;
     int exit_status;
-<<<<<<< HEAD
 };
 
 struct filehandle {
     struct list_elem elem;
     int fd;/*file descriptor*/
     struct file* fp;/*file pointer*/
-=======
->>>>>>> da07801023fe60a1fa4650d2b1d8cbf2cdcde22b
 };
 
 struct thread
