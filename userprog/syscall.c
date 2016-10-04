@@ -127,9 +127,9 @@ some information about possible deadlock situations, etc.*/
 
 void exit(int status){
     struct thread *cur = thread_current();
-    cur->c->exit_status = arg[0];
+    cur->c->exit_status = status;
     /* print name of thread and exit status */
-    printf ("%s: exit(%d)\n", cur->name, arg[0]);
+    printf ("%s: exit(%d)\n", cur->name, status);
     thread_exit();
 }
 
