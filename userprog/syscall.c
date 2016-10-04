@@ -81,6 +81,7 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
             f->eax = write(arg[0], buf, (unsigned) arg[2]);
             break;
         } case SYS_SEEK: {
+                seek(arg[0],arg[1]);
             break;
         } case SYS_TELL: {
             f->eax=tell(arg[0]);
@@ -280,7 +281,23 @@ indicating end of file. A later write extends the file, filling any unwritten ga
 zeros. (However, in Pintos files have a fixed length until project 4 is complete, so
 writes past end of file will return an error.) These semantics are implemented in the
 file system and do not require any special effort in system call implementation.*/
-	
+    struct thread* cur=thread_current();
+    struct list_elem* e;
+    struct filehandle* fh;
+    bool hasFH=false;
+    for(e=list_begin(&cur->fd_list); e!= list_end(&cur->fd_list); e=list_next(e))
+    {
+        fh=list_entry(e,struct filehandle, elem);
+        if(fh->fd==fd){
+        hasFH=true;
+        break;
+        }
+    }
+    if(!hasFH){
+        return;
+    }
+    
+	file_seek(fh->fp,position);	
     return;
 }
 unsigned tell(int fd){
