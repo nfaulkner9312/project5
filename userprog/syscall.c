@@ -59,14 +59,16 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
             process_wait(arg[0]);
             break;
         } case SYS_CREATE: {
+            f->eax=create((const char*)arg[0],(unsigned)arg[1]);
             break;
         } case SYS_REMOVE: {
+            f->eax=remove((const char*)arg[0]);
             break;
         } case SYS_OPEN: {
-		    int k = open((const char*)arg[0]);
-            
+		    f->eax = open((const char*)arg[0]);
             break;
         } case SYS_FILESIZE: {
+               f->eax = filesize((int)arg[0]); 
             break;
         } case SYS_READ: {
             void* buf = pagedir_get_page(thread_current()->pagedir, (const void *)arg[1]);
@@ -80,8 +82,10 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
         } case SYS_SEEK: {
             break;
         } case SYS_TELL: {
+                f->eax=tell(arg[0]);
             break;
         } case SYS_CLOSE: {
+            close((int)arg[0]);
             break;
         }
 	
@@ -136,11 +140,6 @@ to ensure this.*/
 return 0;
 }
 
-int wait(int pid){
-/*See documentation, this one is long.*/
-
-return 0;
-}
 bool create(const char* fileName, unsigned initial_size){
 /*Creates a new file called file initially initial size bytes in size. Returns true if successful,
 false otherwise. Creating a new file does not open it: opening the new file is
@@ -276,8 +275,23 @@ in bytes from the beginning of the file.*/
 void close(int fd){
 /*Closes file descriptor fd. Exiting or terminating a process implicitly closes all its open
 file descriptors, as if by calling this function for each one.*/
-	struct thread* cur=thread_current();
-	//file_close(cur->fd_list[fd]);
+    struct thread* cur=thread_current();
+    struct list_elem* e;
+    struct filehandle* fh;
+    bool hasFH=false;
+    for(e=list_begin(&cur->fd_list); e!= list_end(&cur->fd_list); e=list_next(e))
+    {
+        fh=list_entry(e,struct filehandle, elem);
+        if(fh->fd==fd){
+        hasFH=true;
+        break;
+        }
+    }
+    if(!hasFH){
+        return;
+    }
+    
+	file_close(fh->fp);
 }
 
 
