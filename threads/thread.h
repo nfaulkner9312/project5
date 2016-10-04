@@ -87,7 +87,6 @@ struct child {
     tid_t tid;
     bool exiting;
     int exit_status;
-    struct thread* t;
 };
 
 struct thread

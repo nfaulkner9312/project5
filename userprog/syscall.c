@@ -56,7 +56,6 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
             break;
         } case SYS_EXIT: {
             struct thread *cur = thread_current();
-            cur->c->exiting = true;
             cur->c->exit_status = arg[0];
             printf ("%s: exit(%d)\n", cur->name, arg[0]);
             thread_exit();

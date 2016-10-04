@@ -20,7 +20,7 @@
 #include "threads/malloc.h"
 #include "threads/synch.h"
 
-#define DEFAULT_NUMARGS 2
+#define DEFAULT_NUMARGS 2 
 #define DELIMITER " "
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -39,13 +39,12 @@ process_execute (const char *file_name) {
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
-  
+  /* Make a copy of the filename */
+  strlcpy (fn_copy, file_name, PGSIZE);
+
   /* Get filename without arguments */
   char *saveptr;
-  file_name = strtok_r((char*)file_name, DELIMITER, &saveptr);
-
-  /* Make a copy of the filename now that it's been parsed */
-  strlcpy (fn_copy, file_name, PGSIZE);
+  file_name = strtok_r((char *)file_name, DELIMITER, &saveptr);
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
@@ -262,11 +261,17 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
   process_activate ();
 
+  
+  /* Get filename without arguments */
+  char *saveptr;
+  char *name = (char *) malloc(sizeof(char)*(strlen(file_name)+1));
+  strlcpy(name, file_name, strlen(file_name)+1);
+  name = strtok_r(name, DELIMITER, &saveptr);
   /* Open executable file. */
-  file = filesys_open (file_name);
+  file = filesys_open (name);
   if (file == NULL) 
     {
-      printf ("load: %s: open failed\n", file_name);
+      printf ("load: %s: open failed\n", name);
       goto done; 
     }
 
@@ -343,7 +348,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
 
   /* Set up stack. */
-  //printf("file loaded, about to setup stack\n");
   if (!setup_stack (esp, file_name))
     goto done;
 
@@ -487,12 +491,15 @@ static bool setup_stack (void **esp, const char* file_name) {
     char **arg_addrs = malloc(DEFAULT_NUMARGS*sizeof(char*));
     char *saveptr;
     char *arg = strtok_r((char*)file_name, DELIMITER, &saveptr);
-    int i=0, j=0, arglength = 0;
+    int i=0, j=0, arglength = 0, size = DEFAULT_NUMARGS;
     while (arg != NULL) {
         args[i] = arg;
+        //printf("getting arg[%d] = %s\n",i, args[i]);
         i++;
-        /* TODO: Have to realloc a larger space of memory 
-                 if there is more than one argument */ 
+        if (i>size) {
+            size *= 2;
+            args = realloc(args, size*sizeof(char*));
+        }
         arg = strtok_r(NULL, DELIMITER, &saveptr);
     }
     args[i] = 0;
