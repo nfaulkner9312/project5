@@ -203,9 +203,7 @@ int filesize(int fd){
 }
 
 int read(int fd, void *buffer, unsigned size){
-<<<<<<< HEAD
     unsigned int i;
-    struct thread *cur=thread_current(); 
 	if(fd == 0){
 	    /*Reading from keyboard (STDIN) using input_getc()*/
 	    /*TO-DO*/
