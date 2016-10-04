@@ -41,15 +41,7 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
     int arg[3]; 
     
     get_arg(f, &arg[0], 3);
-    /*int i = 0;
-    for (i = 0; i< 3; i++) {
-        printf("arg_%d = %d\n", i, arg[i]);
-    }
-    */
-    /*
-    int *arg_ptr = (int*)f->esp;
-    printf ("system call = %d\n", *arg_ptr);
-    */ 
+     
     switch(*(int*)f->esp) {
 	/*each argument is just the next thing on the stack after the syctemcall#, esp+1 esp+2 etc*/
         case SYS_HALT: {halt();
@@ -75,6 +67,8 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
         } case SYS_FILESIZE: {
             break;
         } case SYS_READ: {
+            void* buf = pagedir_get_page(thread_current()->pagedir, (const void *)arg[1]);
+            f->eax = read(arg[0], buf, (unsigned) arg[2]);
             break;
         } case SYS_WRITE: {
             const void* buf = pagedir_get_page(thread_current()->pagedir, (const void *)arg[1]);
@@ -99,7 +93,9 @@ int write(int fd, const void *buffer, unsigned size) {
     if (fd == STDOUT_FILENO) {
         putbuf(buffer, size);
         return size;
-    } else {
+    } else if(fd == STDIN_FILENO) {
+        return -1;
+    }else {
         struct thread* cur = thread_current();
         //int ret = file_write(cur->fd_list[fd], buffer, size);
         int ret = 0;
@@ -195,18 +191,20 @@ int filesize(int fd){
 }
 
 int read(int fd, void *buffer, unsigned size){
-/*Reads size bytes from the file open as fd into buffer. Returns the number of bytes
-actually read (0 at end of file), or -1 if the file could not be read (due to a condition
-other than end of file). Fd 0 reads from the keyboard using input_getc().*/
-	struct thread *cur=thread_current(); 
+    unsigned int i;
+    struct thread *cur=thread_current(); 
 	if(fd == 0){
-	/*Reading from keyboard (STDIN) using input_getc()*/
-	/*TO-DO*/	
-	return 0;
+	    /*Reading from keyboard (STDIN) using input_getc()*/
+	    /*TO-DO*/
+        uint8_t *tmp_buf = (uint8_t *) buffer;
+        for (i=0; i<size; i++) {
+            tmp_buf[i] = input_getc();
+        }
+	    return size;
 	}
 	else if (fd==1){
-	/*not sure if this makes sense really, should be STDOUT*/
-	return 0;
+	    /*not sure if this makes sense really, should be STDOUT*/
+	    return 0;
 	}
 	//unsigned ret = (unsigned)file_read (cur->fd_list[fd], buffer, size);
     unsigned int ret = 0;

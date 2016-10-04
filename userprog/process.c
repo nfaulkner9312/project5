@@ -20,7 +20,7 @@
 #include "threads/malloc.h"
 #include "threads/synch.h"
 
-#define DEFAULT_NUMARGS 2 
+#define DEFAULT_NUMARGS 4 
 #define DELIMITER " "
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -496,7 +496,8 @@ static bool setup_stack (void **esp, const char* file_name) {
         args[i] = arg;
         //printf("getting arg[%d] = %s\n",i, args[i]);
         i++;
-        if (i>size) {
+        
+        if (i>=size) {
             size *= 2;
             args = realloc(args, size*sizeof(char*));
         }
@@ -506,7 +507,7 @@ static bool setup_stack (void **esp, const char* file_name) {
     arg_addrs[i] = 0;
     /* push the args onto the stack */
     for (j=i-1; j>=0; j--) {
-        //printf("pushing arg = %s\n", args[j]);
+        //printf("pushing arg[%d] = %s\n", j, args[j]);
         arglength = strlen(args[j]) + 1;
         *esp -= arglength;
         arg_addrs[j] = *esp; 
