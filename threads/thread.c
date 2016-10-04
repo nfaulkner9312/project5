@@ -476,9 +476,8 @@ init_thread (struct thread *t, const char *name, int priority)
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
 
-  /* initialize file list */
+  /* initialize file list*/ 
   list_init(&t->fd_list);
-    t->fd_count=0;
 
   /* initialize child list */
   list_init(&t->child_list);

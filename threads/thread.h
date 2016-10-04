@@ -4,7 +4,6 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
-//#include "filesys/file.c"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -121,7 +120,6 @@ struct thread
     struct list fd_list;
 
     struct child* c;
-    //struct child* child_list_ptr;
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };

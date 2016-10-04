@@ -210,7 +210,6 @@ int read(int fd, void *buffer, unsigned size){
 /*Reads size bytes from the file open as fd into buffer. Returns the number of bytes
 actually read (0 at end of file), or -1 if the file could not be read (due to a condition
 other than end of file). Fd 0 reads from the keyboard using input_getc().*/
-	struct thread *cur=thread_current(); 
 	if(fd == 0){
 	/*Reading from keyboard (STDIN) using input_getc()*/
 	/*TODO*/	
@@ -218,13 +217,28 @@ other than end of file). Fd 0 reads from the keyboard using input_getc().*/
 	}
 	else if (fd==1){
 	/*not sure if this makes sense really, should be STDOUT*/
-	return 0;
+	return -1;
 	}
-	//unsigned ret = (unsigned)file_read (cur->fd_list[fd], buffer, size);
-    unsigned int ret = 0;
+
+    struct thread* cur=thread_current();
+    struct list_elem* e;
+    struct filehandle* fh;
+    bool hasFH=false;
+    for(e=list_begin(&cur->fd_list); e!= list_end(&cur->fd_list); e=list_next(e))
+    {
+        fh=list_entry(e,struct filehandle, elem);
+        if(fh->fd==fd){
+        hasFH=true;
+        break;
+        }
+    }
+    if(!hasFH){
+        return -1;
+    }
+    
+	unsigned ret=file_read(fh->fp,buffer,size);
 	return ret;
 }
-
 
 void seek(int fd, unsigned position){
 /*Changes the next byte to be read or written in open file fd to position, expressed in
@@ -240,9 +254,25 @@ return;
 unsigned tell(int fd){
 /*Returns the position of the next byte to be read or written in open file fd, expressed
 in bytes from the beginning of the file.*/
-	struct thread* cur=thread_current();
-	//unsigned ret=file_tell(cur->fd_list[fd]);
-    unsigned ret = 0;
+
+
+    struct thread* cur=thread_current();
+    struct list_elem* e;
+    struct filehandle* fh;
+    bool hasFH=false;
+    for(e=list_begin(&cur->fd_list); e!= list_end(&cur->fd_list); e=list_next(e))
+    {
+        fh=list_entry(e,struct filehandle, elem);
+        if(fh->fd==fd){
+        hasFH=true;
+        break;
+        }
+    }
+    if(!hasFH){
+        return -1;
+    }
+    
+	unsigned ret=file_tell(fh->fp);
 	return ret;
 }
 void close(int fd){
