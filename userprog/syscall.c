@@ -14,6 +14,7 @@
 #include "userprog/pagedir.h"
 #include "userprog/process.h"
 
+
 static void syscall_handler (struct intr_frame *);
 void get_arg (struct intr_frame *f, int *arg, int n);
 int write(int fd, const void *buffer, unsigned size);
@@ -38,13 +39,16 @@ void syscall_init (void) {
 
 static void syscall_handler (struct intr_frame *f UNUSED) {
   
-    int arg[3]; 
+    int arg[3];
+    
+    /* TODO check if stack pointer is out of bounds */
     
     get_arg(f, &arg[0], 3);
      
     switch(*(int*)f->esp) {
 	/*each argument is just the next thing on the stack after the syctemcall#, esp+1 esp+2 etc*/
-        case SYS_HALT: {halt();
+        case SYS_HALT: {
+            halt();
             break;
         } case SYS_EXIT: {
             struct thread *cur = thread_current();
@@ -86,9 +90,18 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
         }
 	
     }
-
-    /*thread_exit ();*/
 }
+
+/* get arguments for the system call off of the stack */
+void get_arg (struct intr_frame *f, int *arg, int n){
+    int i;
+    int *ptr;
+    for (i = 0; i < n; i++) {
+        ptr = (int *) f->esp + i + 1;
+        arg[i] = *ptr;
+    }
+}
+
 
 int write(int fd, const void *buffer, unsigned size) {
     /* TODO: synchronization */
@@ -105,26 +118,20 @@ int write(int fd, const void *buffer, unsigned size) {
     }
 }
 
-void get_arg (struct intr_frame *f, int *arg, int n){
-    int i;
-    int *ptr;
-    for (i = 0; i < n; i++) {
-        ptr = (int *) f->esp + i + 1;
-        arg[i] = *ptr;
-    }
-}
 void halt(void){
 /*Terminates Pintos by calling shutdown_power_off() (declared in
 ‘devices/shutdown.h’). This should be seldom used, because you lose
 some information about possible deadlock situations, etc.*/
 
 }
+
 void exit(int status){
 /*Terminates the current user program, returning status to the kernel. If the process’s
 parent waits for it (see below), this is the status that will be returned. Conventionally,
 a status of 0 indicates success and nonzero values indicate errors.*/
 
 }
+
 int exec (const char* cmd_line){
 /*Runs the executable whose name is given in cmd line, passing any given arguments,
 and returns the new process’s program id (pid). Must return pid -1, which otherwise
