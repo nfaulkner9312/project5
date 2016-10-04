@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+//#include "filesys/file.c"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -87,7 +88,12 @@ struct child {
     tid_t tid;
     bool exiting;
     int exit_status;
-    struct thread* t;
+};
+
+struct filehandle {
+    struct list_elem elem;
+    int fd;/*file descriptor*/
+    struct file* fp;/*file pointer*/
 };
 
 struct thread
@@ -99,6 +105,7 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
+    int fd_count;
     struct list_elem allelem;           /* List element for all threads list. */
 
     /* Shared between thread.c and synch.c. */

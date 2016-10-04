@@ -197,7 +197,7 @@ tid_t thread_create (const char *name, int priority, thread_func *function, void
     sf->eip = switch_entry;
     sf->ebp = 0;
 
-    // add child to child_list
+    /* add child to child_list*/
     struct child* child_ptr = malloc(sizeof(struct child));
     child_ptr->tid = t->tid;
     child_ptr->exiting = false;
@@ -470,6 +470,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
+    t->fd_count=2;/*accounting for STDIN and STDOUT*/
   list_init(&(t->childList));
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
@@ -477,6 +478,7 @@ init_thread (struct thread *t, const char *name, int priority)
 
   /* initialize file list */
   list_init(&t->fd_list);
+    t->fd_count=0;
 
   /* initialize child list */
   list_init(&t->child_list);
