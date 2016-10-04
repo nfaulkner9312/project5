@@ -53,16 +53,18 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
             thread_exit();
             break;
         } case SYS_EXEC: {
-            exec((const char*)(f->esp+1));/*maybe this one is correct? The first thing on the stack is a char*, so I want to cast the void* to a const char*(*?) and dereference it to pass the value at that location which is then a const char*   I am super confused by all these stars*/
+            exec((const char*)arg[0]);/*maybe this one is correct? The first thing on the stack is a char*, so I want to cast the void* to a const char*(*?) and dereference it to pass the value at that location which is then a const char*   I am super confused by all these stars*/
             break;
         } case SYS_WAIT: {
+            process_wait(arg[0]);
             break;
         } case SYS_CREATE: {
             break;
         } case SYS_REMOVE: {
             break;
         } case SYS_OPEN: {
-		    int k = open((const char*)(f->esp+1));
+		    int k = open((const char*)arg[0]);
+            
             break;
         } case SYS_FILESIZE: {
             break;
@@ -164,33 +166,44 @@ When a single file is opened more than once, whether by a single process or diff
 processes, each open returns a new file descriptor. Different file descriptors for a single
 file are closed independently in separate calls to close and they do not share a file
 position.*/
-    /*
+    
 	struct thread* cur=thread_current();
-	int ind=2;
-	while(cur->fd_list[ind]==0){
-	    ind++;
-    }
-	if(ind>=128){
-	    // TO-DO: some sort of error here, too many files open in one thread. It may just return -1
-	    return -1;
-	}
-	cur->fd_list[ind]=filesys_open(file);
-	if(cur->fd_list[ind]==NULL){
+	    /* add to file descriptor list here */
+	struct file* fd_p=filesys_open(file);
+	if(fd_p==NULL){
 	    return -1;
 	} else {
-	    return ind;
+        struct filehandle* new_fh=malloc(sizeof(struct child));
+        new_fh->fp=fd_p;
+        new_fh->fd=cur->fd_count;/*accounting for STDIN and STDOUT*/
+        list_push_back(&cur->fd_list,&new_fh->elem);
+	    return cur->fd_count++;
     }
-    */
 }
 int filesize(int fd){
 /*Returns the size, in bytes, of the file open as fd*/
 	struct thread* cur=thread_current();
-	//unsigned ret=file_length(cur->fd_list[fd]);
-    unsigned int ret = 0;
+    struct list_elem* e;
+    struct filehandle* fh;
+    bool hasFH=false;
+    for(e=list_begin(&cur->fd_list); e!= list_end(&cur->fd_list); e=list_next(e))
+    {
+        fh=list_entry(e,struct filehandle, elem);
+        if(fh->fd==fd){
+        hasFH=true;
+        break;
+        }
+    }
+    if(!hasFH){
+        return -1;
+    }
+    
+	unsigned ret=file_length(fh->fp);
 	return ret;
 }
 
 int read(int fd, void *buffer, unsigned size){
+<<<<<<< HEAD
     unsigned int i;
     struct thread *cur=thread_current(); 
 	if(fd == 0){
@@ -204,13 +217,28 @@ int read(int fd, void *buffer, unsigned size){
 	}
 	else if (fd==1){
 	    /*not sure if this makes sense really, should be STDOUT*/
-	    return 0;
-	}
-	//unsigned ret = (unsigned)file_read (cur->fd_list[fd], buffer, size);
-    unsigned int ret = 0;
+	    return -1;
+    }
+
+    struct thread* cur=thread_current();
+    struct list_elem* e;
+    struct filehandle* fh;
+    bool hasFH=false;
+    for(e=list_begin(&cur->fd_list); e!= list_end(&cur->fd_list); e=list_next(e))
+    {
+        fh=list_entry(e,struct filehandle, elem);
+        if(fh->fd==fd){
+        hasFH=true;
+        break;
+        }
+    }
+    if(!hasFH){
+        return -1;
+    }
+    
+	unsigned ret=file_read(fh->fp,buffer,size);
 	return ret;
 }
-
 
 void seek(int fd, unsigned position){
 /*Changes the next byte to be read or written in open file fd to position, expressed in
@@ -226,9 +254,25 @@ return;
 unsigned tell(int fd){
 /*Returns the position of the next byte to be read or written in open file fd, expressed
 in bytes from the beginning of the file.*/
-	struct thread* cur=thread_current();
-	//unsigned ret=file_tell(cur->fd_list[fd]);
-    unsigned ret = 0;
+
+
+    struct thread* cur=thread_current();
+    struct list_elem* e;
+    struct filehandle* fh;
+    bool hasFH=false;
+    for(e=list_begin(&cur->fd_list); e!= list_end(&cur->fd_list); e=list_next(e))
+    {
+        fh=list_entry(e,struct filehandle, elem);
+        if(fh->fd==fd){
+        hasFH=true;
+        break;
+        }
+    }
+    if(!hasFH){
+        return -1;
+    }
+    
+	unsigned ret=file_tell(fh->fp);
 	return ret;
 }
 void close(int fd){
