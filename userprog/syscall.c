@@ -51,10 +51,7 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
             halt();
             break;
         } case SYS_EXIT: {
-            struct thread *cur = thread_current();
-            cur->c->exit_status = arg[0];
-            printf ("%s: exit(%d)\n", cur->name, arg[0]);
-            thread_exit();
+            exit(arg[0]);
             break;
         } case SYS_EXEC: {
             exec((const char*)arg[0]);/*maybe this one is correct? The first thing on the stack is a char*, so I want to cast the void* to a const char*(*?) and dereference it to pass the value at that location which is then a const char*   I am super confused by all these stars*/
@@ -81,7 +78,6 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
         } case SYS_WRITE: {
             const void* buf = pagedir_get_page(thread_current()->pagedir, (const void *)arg[1]);
             f->eax = write(arg[0], buf, (unsigned) arg[2]);
-            /*printf("done writing\n");*/
             break;
         } case SYS_SEEK: {
             break;
@@ -130,10 +126,11 @@ some information about possible deadlock situations, etc.*/
 }
 
 void exit(int status){
-/*Terminates the current user program, returning status to the kernel. If the process’s
-parent waits for it (see below), this is the status that will be returned. Conventionally,
-a status of 0 indicates success and nonzero values indicate errors.*/
-
+    struct thread *cur = thread_current();
+    cur->c->exit_status = arg[0];
+    /* print name of thread and exit status */
+    printf ("%s: exit(%d)\n", cur->name, arg[0]);
+    thread_exit();
 }
 
 int exec (const char* cmd_line){
@@ -144,7 +141,7 @@ the parent process cannot return from the exec until it knows whether the child
 process successfully loaded its executable. You must use appropriate synchronization
 to ensure this.*/
 
-return 0;
+    return 0;
 }
 
 bool create(const char* fileName, unsigned initial_size){
