@@ -14,11 +14,13 @@
 #include "userprog/pagedir.h"
 #include "userprog/process.h"
 
+struct lock write_lock;
 static void syscall_handler (struct intr_frame *);
 void get_arg (struct intr_frame *f, int *arg, int n);
 int write(int fd, const void *buffer, unsigned size);
+void is_valid_buf(void *buf, int len);
+void is_valid_ptr(const void *ptr);
 
-static void syscall_handler (struct intr_frame *);
 void halt(void);
 void exit(int status);
 int exec (const char* cmd_line);
@@ -34,6 +36,7 @@ void close(int fd);
 
 void syscall_init (void) {
     intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
+    lock_init(&write_lock);
 }
 
 static void syscall_handler (struct intr_frame *f UNUSED) {
@@ -145,8 +148,9 @@ int write(int fd, const void *buffer, unsigned size) {
         if(!hasFH){
             return -1;
         }
-        
+        lock_acquire(&write_lock);
         unsigned int ret = file_write(fh->fp,buffer,size);
+        lock_release(&write_lock);
         return ret;
     }
 }
@@ -211,7 +215,12 @@ bool create(const char* fileName, unsigned initial_size){
 /*Creates a new file called file initially initial size bytes in size. Returns true if successful,
 false otherwise. Creating a new file does not open it: opening the new file is
 a separate operation which would require a open system call.*/
+    if(fileName){
     return filesys_create(fileName, initial_size);
+    }else{
+    exit(-1);
+    return 0;
+    }
 }
 bool remove(const char* file){
 /*Deletes the file called file. Returns true if successful, false otherwise. A file may be
@@ -220,18 +229,6 @@ not close it. See [Removing an Open File], page 35, for details.*/
     return filesys_remove(file);
 }
 int open(const char* file){
-/*Opens the file called file. Returns a nonnegative integer handle called a “file descriptor”
-(fd), or -1 if the file could not be opened.
-File descriptors numbered 0 and 1 are reserved for the console: fd 0 (STDIN_FILENO) is
-standard input, fd 1 (STDOUT_FILENO) is standard output. The open system call will
-never return either of these file descriptors, which are valid as system call arguments
-only as explicitly described below.
-Each process has an independent set of file descriptors. File descriptors are not
-inherited by child processes.
-When a single file is opened more than once, whether by a single process or different
-processes, each open returns a new file descriptor. Different file descriptors for a single
-file are closed independently in separate calls to close and they do not share a file
-position.*/
     
 	struct thread* cur=thread_current();
 	    /* add to file descriptor list here */
