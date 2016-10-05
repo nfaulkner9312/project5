@@ -16,6 +16,8 @@
 
 static void syscall_handler (struct intr_frame *);
 void get_arg (struct intr_frame *f, int *arg, int n);
+void is_valid_ptr(const void *ptr); 
+void is_valid_buf(void *buf, int len);
 int write(int fd, const void *buffer, unsigned size);
 
 static void syscall_handler (struct intr_frame *);
@@ -41,9 +43,10 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
     int arg[3];
     
     /* TODO check if stack pointer is out of bounds */
-    
+    is_valid_ptr(f->esp); 
+
     get_arg(f, &arg[0], 3);
-     
+
     switch(*(int*)f->esp) {
 	/*each argument is just the next thing on the stack after the syctemcall#, esp+1 esp+2 etc*/
         case SYS_HALT: {
@@ -55,6 +58,9 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
         } case SYS_EXEC: {
             is_valid_ptr((const void *) arg[0]);
             const char* buf = pagedir_get_page(thread_current()->pagedir, (const void *)arg[0]);
+            if (buf == NULL) {
+                exit(-1);
+            }
             f->eax = exec(buf);
             break;
         } case SYS_WAIT: {
@@ -65,9 +71,11 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
             f->eax=create((const char*)arg[0],(unsigned)arg[1]);
             break;
         } case SYS_REMOVE: {
+            is_valid_ptr((const void *) arg[0]);
             f->eax=remove((const char*)arg[0]);
             break;
         } case SYS_OPEN: {
+            is_valid_ptr((const void *) arg[0]);
 		    f->eax = open((const char*)arg[0]);
             break;
         } case SYS_FILESIZE: {
@@ -76,11 +84,17 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
         } case SYS_READ: {
             is_valid_buf((void *) arg[1], arg[2]);
             void* buf = pagedir_get_page(thread_current()->pagedir, (const void *)arg[1]);
+            if (buf == NULL) {
+                exit(-1);
+            }
             f->eax = read(arg[0], buf, (unsigned) arg[2]);
             break;
         } case SYS_WRITE: {
             is_valid_buf((void *) arg[1], arg[2]);
             const void* buf = pagedir_get_page(thread_current()->pagedir, (const void *)arg[1]);
+            if (buf == NULL) {
+                exit(-1);
+            }
             f->eax = write(arg[0], buf, (unsigned) arg[2]);
             break;
         } case SYS_SEEK: {
@@ -97,12 +111,18 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
 }
 
 void is_valid_ptr(const void *ptr) {
+    if (ptr == NULL) {
+        exit(-1);
+    }
     if (!is_user_vaddr(ptr)) {
         exit(-1); 
     }
 }
 
 void is_valid_buf(void *buf, int len) {
+    if (buf == NULL) {
+        exit(-1);
+    }
     int i;
     char* tmp_buf = (char *) buf;
     for (i=0; i<len; i++) {
@@ -303,20 +323,19 @@ int read(int fd, void *buffer, unsigned size){
 }
 
 void seek(int fd, unsigned position){
-/*Changes the next byte to be read or written in open file fd to position, expressed in
-bytes from the beginning of the file. (Thus, a position of 0 is the file’s start.)
-A seek past the current end of a file is not an error. A later read obtains 0 bytes,
-indicating end of file. A later write extends the file, filling any unwritten gap with
-zeros. (However, in Pintos files have a fixed length until project 4 is complete, so
-writes past end of file will return an error.) These semantics are implemented in the
-file system and do not require any special effort in system call implementation.*/
+    /*Changes the next byte to be read or written in open file fd to position, expressed in
+    bytes from the beginning of the file. (Thus, a position of 0 is the file’s start.)
+    A seek past the current end of a file is not an error. A later read obtains 0 bytes,
+    indicating end of file. A later write extends the file, filling any unwritten gap with
+    zeros. (However, in Pintos files have a fixed length until project 4 is complete, so
+    writes past end of file will return an error.) These semantics are implemented in the
+    file system and do not require any special effort in system call implementation.*/
 	
     return;
 }
 unsigned tell(int fd){
-/*Returns the position of the next byte to be read or written in open file fd, expressed
-in bytes from the beginning of the file.*/
-
+    /*Returns the position of the next byte to be read or written in open file fd, expressed
+      in bytes from the beginning of the file.*/
 
     struct thread* cur=thread_current();
     struct list_elem* e;
@@ -338,8 +357,8 @@ in bytes from the beginning of the file.*/
 	return ret;
 }
 void close(int fd){
-/*Closes file descriptor fd. Exiting or terminating a process implicitly closes all its open
-file descriptors, as if by calling this function for each one.*/
+    /*Closes file descriptor fd. Exiting or terminating a process implicitly closes all its open
+      file descriptors, as if by calling this function for each one.*/
     struct thread* cur=thread_current();
     struct list_elem* e;
     struct filehandle* fh;
