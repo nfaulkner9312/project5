@@ -159,7 +159,7 @@ void halt(void){
 /*Terminates Pintos by calling shutdown_power_off() (declared in
 ‘devices/shutdown.h’). This should be seldom used, because you lose
 some information about possible deadlock situations, etc.*/
-
+shutdown_power_off();
 }
 
 void exit(int status){
