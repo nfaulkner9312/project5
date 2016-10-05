@@ -144,7 +144,6 @@ void process_exit (void) {
   /* 3) set exit status */
   cur->c->exiting = true;
 
-
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -161,6 +160,7 @@ void process_exit (void) {
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+
 }
 
 /* Sets up the CPU for running user code in the current
@@ -276,13 +276,14 @@ load (const char *file_name, void (**eip) (void), void **esp)
   name = strtok_r(name, DELIMITER, &saveptr);
   /* Open executable file. */
   file = filesys_open (name);
+
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", name);
       goto done; 
     }
-
-  /* Read and verify executable header. */
+    t->myself=file;
+/*    file_deny_write(file);*/  /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
       || memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7)
       || ehdr.e_type != 2
