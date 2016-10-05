@@ -142,6 +142,23 @@ void process_exit (void) {
   /* 1) close files opened by process */
   /* 2) free the child_list */
   /* 3) set exit status */
+
+/*   struct list_elem* e;
+    struct filehandle* fh;
+    for(e=list_begin(&cur->fd_list); e!= list_end(&cur->fd_list); e=list_next(e))
+    {
+        fh=list_entry(e,struct filehandle, elem);
+        file_close(fh->fp);
+        list_remove(e);
+    }
+*/
+
+    if(cur->myself != NULL){
+    file_close(cur->myself);
+    }
+/*#####*/
+
+
   cur->c->exiting = true;
 
   /* Destroy the current process's page directory and switch back
@@ -283,7 +300,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
       goto done; 
     }
     t->myself=file;
-/*    file_deny_write(file);*/  /* Read and verify executable header. */
+    file_deny_write(file);
+  /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
       || memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7)
       || ehdr.e_type != 2
@@ -366,7 +384,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
  done:
   /* We arrive here whether the load is successful or not. */
-  file_close (file);
+  if(!success)
+    file_close (file);
   return success;
 }
 

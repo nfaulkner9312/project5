@@ -299,8 +299,8 @@ thread_exit (void)
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
   intr_disable ();
- /*   struct thread* cur=thread_current();
-    struct list_elem* e;
+    struct thread* cur=thread_current();
+ /*   struct list_elem* e;
     struct filehandle* fh;
     for(e=list_begin(&cur->fd_list); e!= list_end(&cur->fd_list); e=list_next(e))
     {
@@ -309,7 +309,11 @@ thread_exit (void)
         list_remove(e);
     }
 */
-   /*file_close(cur->myself); */
+/*
+    if(cur->myself != NULL){
+    file_close(cur->myself);
+    }
+*/
   list_remove (&thread_current()->allelem);
   thread_current ()->status = THREAD_DYING;
   schedule ();
