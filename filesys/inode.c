@@ -43,6 +43,7 @@ struct inode
    within INODE.
    Returns -1 if INODE does not contain data for a byte at offset
    POS. */
+/* NOTE: we will rewrite this to search through the direct and indirect and double indirect blocks and return the sector found*/
 static block_sector_t
 byte_to_sector (const struct inode *inode, off_t pos) 
 {

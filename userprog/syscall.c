@@ -168,7 +168,7 @@ int write(int fd, const void *buffer, unsigned size) {
         if(!hasFH){
             return -1;
         }
-        lock_acquire(&write_lock);
+        lock_acquire(&write_lock);/* NOTE: replace with lock from specific filesystem sector being written to, currently unsure about the granularity of the locking on the filesystem but I know this current implementation is not robust enough*/
         unsigned int ret = file_write(fh->fp,buffer,size);
         lock_release(&write_lock);
         return ret;
