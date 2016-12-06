@@ -7,50 +7,80 @@
 #include "filesys/free-map.h"
 #include "threads/malloc.h"
 
+/* Define number of direct, indirect and doubly indirect blocks per inode */
+#define NUM_DIRECT 4
+#define NUM_INDIRECT 9
+#define NUM_DOUBLY_INDIRECT 1
+
+/* starting index in the inode structure
+   for direct, indirect, and doubly indirect blocks */
+#define START_DIRECT 0
+#define START_INDIRECT 4
+#define START_DOUBLY_INDIRECT 13
+
+/* Define the total number of block pointers for an inode */
+#define NUM_DIRECT_BLOCK_PTRS 14
+
+/* Total number of block pointers for an indirect block */
+#define NUM_INDIRECT_BLOCK_PTRS 128
+
+
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
 
+/* the meat of the inode */
+struct inode_data {
+    off_t length;                               /* File size in bytes. */
+
+    uint32_t direct_index;                      /* index to the direct blocks */
+    uint32_t indirect_index;                    /* index to the indrect blocks */
+    uint32_t doubly_indirect_index;             /* index to the double indirect blocks */
+
+    block_sector_t block_ptr[NUM_DIRECT_BLOCK_PTRS];   /* pointers to the direct blocks */ 
+};
+
 /* On-disk inode.
    Must be exactly BLOCK_SECTOR_SIZE bytes long. */
-struct inode_disk
-  {
-    block_sector_t start;               /* First data sector. */
-    off_t length;                       /* File size in bytes. */
+struct inode_disk {
+    //block_sector_t start;             /* First data sector. (old system) */
     unsigned magic;                     /* Magic number. */
-    uint32_t unused[125];               /* Not used. */
-  };
+    struct inode_data data;
 
-/* Returns the number of sectors to allocate for an inode SIZE
-   bytes long. */
-static inline size_t
-bytes_to_sectors (off_t size)
-{
-  return DIV_ROUND_UP (size, BLOCK_SECTOR_SIZE);
+    uint32_t unused[109];               /* Not used. */
+};
+
+struct indirect_block {
+    block_sector_t ptr[NUM_INDIRECT_BLOCK_PTRS];
+};
+
+/* Returns the number of sectors to allocate for an inode SIZE bytes long. */
+static inline size_t bytes_to_sectors(off_t size) {
+    return DIV_ROUND_UP(size, BLOCK_SECTOR_SIZE);
 }
 
 /* In-memory inode. */
-struct inode 
-  {
+struct inode {
     struct list_elem elem;              /* Element in inode list. */
     block_sector_t sector;              /* Sector number of disk location. */
     int open_cnt;                       /* Number of openers. */
     bool removed;                       /* True if deleted, false otherwise. */
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
-    struct inode_disk data;             /* Inode content. */
-  };
+    struct inode_data data;             /* Inode content */
+    /* struct inode_disk data; */       /* Inode content. can't do this anymore 
+                                           the unused array takes up too much space */
+};
 
 /* Returns the block device sector that contains byte offset POS
    within INODE.
    Returns -1 if INODE does not contain data for a byte at offset
    POS. */
-static block_sector_t
-byte_to_sector (const struct inode *inode, off_t pos) 
-{
-  ASSERT (inode != NULL);
-  if (pos < inode->data.length)
-    return inode->data.start + pos / BLOCK_SECTOR_SIZE;
-  else
-    return -1;
+static block_sector_t byte_to_sector (const struct inode *inode, off_t pos) {
+    ASSERT (inode != NULL);
+    if (pos < inode->data.length) {
+        return inode->data.start + pos / BLOCK_SECTOR_SIZE;
+    } else {
+        return -1;
+    }
 }
 
 /* List of open inodes, so that opening a single inode twice
