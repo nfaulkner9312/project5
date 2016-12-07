@@ -75,7 +75,7 @@ struct inode {
 
 
 /* functions for expanding size */
-void inode_expand(struct inode *inode, off_t length);
+off_t inode_expand(struct inode *inode, off_t length);
 bool inode_release(struct inode *inode);
 bool inode_allocate(struct inode_disk *disk_inode);
 
@@ -349,6 +349,12 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   if (inode->deny_write_cnt)
     return 0;
 
+
+  // expand if you want to write beyond the current length
+  if (offset + size > inode_length(inode)) {
+      inode->data.length = inode_expand(inode, offset + size);
+  }
+
   while (size > 0) 
     {
       /* Sector to write, starting byte offset within sector. */
@@ -428,7 +434,7 @@ inode_length (const struct inode *inode)
   return inode->data.length;
 }
 
-void inode_expand(struct inode *inode, off_t length) {
+off_t inode_expand(struct inode *inode, off_t length) {
 }
 
 bool inode_allocate(struct inode_disk *disk_inode) {
